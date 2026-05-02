@@ -340,7 +340,6 @@
 <header>
   <h1><span>Gemini</span> Extras Calculator</h1>
   <div class="actions">
-    <button onclick="showApiKeyPromptApiKey()">API Key</button>
     <button onclick="clearHistory()">Καθαρισμός Ιστορικού</button>
     <button class="primary" onclick="runAnalysis()">Εκτέλεση Ανάλυσης</button>
   </div>
@@ -356,7 +355,7 @@
     </div>
 
     <div class="form-group">
-      <label for="pricelist-text">Τιμοκατάλογος (Κείμενο ή επικόλληση δεδομένων)</label>
+      <label for="pricelist-text">Τιμοκατάλογος (Κείμενο)</label>
       <textarea id="pricelist-text" placeholder="Κωδικός, Περιγραφή, Αξία..."></textarea>
     </div>
 
@@ -412,14 +411,6 @@
   document.addEventListener("DOMContentLoaded", () => {
     renderHistory();
   });
-
-  function showPromptApiKey() {
-    const key = prompt('Εισάγετε το Gemini API Key σας (π.χ. AIza...):');
-    if (key) {
-      localStorage.setItem('gemini_key', key);
-      alert('Το API Key αποθηκεύτηκε!');
-    }
-  }
 
   function handleFileSelect(e, type) {
     const files = e.target.files;
@@ -480,26 +471,17 @@
     const loading = document.getElementById('loading');
     loading.style.display = 'flex';
 
-    const apiKey = localStorage.getItem('gemini_key');
-    if (!apiKey) {
-      loading.style.display = 'none';
-      alert('Παρακαλώ εισάγετε πρώτα το API Key.');
-      return;
-    }
-
     const vehicle = document.getElementById('vehicle-info').value;
     const pricelistText = document.getElementById('pricelist-text').value;
     const customPrompt = document.getElementById('custom-prompt').value;
 
     let content = [];
     
-    // Προσθήκη κειμένου και τιμοκαταλόγου κειμένου
     content.push({
       type: 'text',
       text: `Όχημα: ${vehicle}\n\nΤιμοκατάλογος:\n${pricelistText}\n\nΟδηγίες:`
     });
 
-    // Προσθήκη ανεβασμένων αρχείων τιμοκαταλόγων
     uploadedPricelists.forEach(f => {
       content.push({
         type: f.type,
@@ -510,7 +492,6 @@
       });
     });
 
-    // Προσθήκη ανεβασμένων αρχείων Datacards
     uploadedDatacards.forEach(f => {
       content.push({
         type: f.type,
@@ -525,8 +506,7 @@
       const resp = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-gemini-key': apiKey
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           system: customPrompt || '',
