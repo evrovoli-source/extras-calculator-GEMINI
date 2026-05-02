@@ -260,7 +260,6 @@
     font-size: 0.85rem;
   }
 
-  /* History list styling */
   .history-card {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -341,7 +340,7 @@
 <header>
   <h1><span>Gemini</span> Extras Calculator</h1>
   <div class="actions">
-    <button onclick="showApiKeyPrompt()">API Key</button>
+    <button onclick="showApiKeyPromptApiKey()">API Key</button>
     <button onclick="clearHistory()">Καθαρισμός Ιστορικού</button>
     <button class="primary" onclick="runAnalysis()">Εκτέλεση Ανάλυσης</button>
   </div>
@@ -357,17 +356,26 @@
     </div>
 
     <div class="form-group">
-      <label for="pricelist-text">Τιμοκατάλογος Extra</label>
+      <label for="pricelist-text">Τιμοκατάλογος (Κείμενο ή επικόλληση δεδομένων)</label>
       <textarea id="pricelist-text" placeholder="Κωδικός, Περιγραφή, Αξία..."></textarea>
     </div>
 
     <div class="form-group">
-      <label>Datacard (Έγγραφο / Εικόνα)</label>
-      <div class="dropzone" onclick="document.getElementById('file-input').click()">
-        <p>Πατήστε εδώ για προσθήκη αρχείου (Datacard)</p>
-        <input type="file" id="file-input" style="display:none" onchange="handleFileSelect(event)">
+      <label>Αρχείο Τιμοκαταλόγου (PDF)</label>
+      <div class="dropzone" onclick="document.getElementById('pricelist-file-input').click()">
+        <p>Πατήστε εδώ για να ανεβάσετε το PDF του τιμοκαταλόγου</p>
+        <input type="file" id="pricelist-file-input" style="display:none" onchange="handleFileSelect(event, 'pricelist')">
       </div>
-      <div id="files-list" class="files-list"></div>
+      <div id="pricelist-files-list" class="files-list"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Datacard (Έγγραφο / Εικόνα οχήματος)</label>
+      <div class="dropzone" onclick="document.getElementById('datacard-file-input').click()">
+        <p>Πατήστε εδώ για να ανεβάσετε το αρχείο της Datacard</p>
+        <input type="file" id="datacard-file-input" style="display:none" onchange="handleFileSelect(event, 'datacard')">
+      </div>
+      <div id="datacard-files-list" class="files-list"></div>
     </div>
 
     <div class="form-group">
@@ -398,13 +406,14 @@
 </main>
 
 <script>
-  let uploadedFiles = [];
+  let uploadedPricelists = [];
+  let uploadedDatacards = [];
 
   document.addEventListener("DOMContentLoaded", () => {
     renderHistory();
   });
 
-  function showApiKeyPrompt() {
+  function showPromptApiKey() {
     const key = prompt('Εισάγετε το Gemini API Key σας (π.χ. AIza...):');
     if (key) {
       localStorage.setItem('gemini_key', key);
@@ -412,36 +421,58 @@
     }
   }
 
-  function handleFileSelect(e) {
+  function handleFileSelect(e, type) {
     const files = e.target.files;
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const reader = new FileReader();
+      
       reader.onload = (event) => {
-        uploadedFiles.push({
+        const fileData = {
           name: file.name,
           type: file.type.startsWith('image') ? 'image' : 'document',
           media_type: file.type,
           data: event.target.result.split(',')[1]
-        });
+        };
+
+        if (type === 'pricelist') {
+          uploadedPricelists.push(fileData);
+        } else {
+          uploadedDatacards.push(fileData);
+        }
+        
         renderFileList();
       };
+      
       reader.readAsDataURL(file);
     }
   }
 
   function renderFileList() {
-    const list = document.getElementById('files-list');
-    list.innerHTML = uploadedFiles.map((f, i) => `
+    const pList = document.getElementById('pricelist-files-list');
+    const dList = document.getElementById('datacard-files-list');
+
+    pList.innerHTML = uploadedPricelists.map((f, i) => `
       <div class="file-item">
         <span>${f.name}</span>
-        <span class="file-remove" onclick="removeFile(${i})">✕</span>
+        <span class="file-remove" onclick="removeFile('pricelist', ${i})">✕</span>
+      </div>
+    `).join('');
+
+    dList.innerHTML = uploadedDatacards.map((f, i) => `
+      <div class="file-item">
+        <span>${f.name}</span>
+        <span class="file-remove" onclick="removeFile('datacard', ${i})">✕</span>
       </div>
     `).join('');
   }
 
-  function removeFile(index) {
-    uploadedFiles.splice(index, 1);
+  function removeFile(type, index) {
+    if (type === 'pricelist') {
+      uploadedPricelists.splice(index, 1);
+    } else {
+      uploadedDatacards.splice(index, 1);
+    }
     renderFileList();
   }
 
@@ -457,17 +488,30 @@
     }
 
     const vehicle = document.getElementById('vehicle-info').value;
-    const pricelist = document.getElementById('pricelist-text').value;
+    const pricelistText = document.getElementById('pricelist-text').value;
     const customPrompt = document.getElementById('custom-prompt').value;
 
     let content = [];
     
+    // Προσθήκη κειμένου και τιμοκαταλόγου κειμένου
     content.push({
       type: 'text',
-      text: `Όχημα: ${vehicle}\n\nΤιμοκατάλογος:\n${pricelist}\n\nΟδηγίες:`
+      text: `Όχημα: ${vehicle}\n\nΤιμοκατάλογος:\n${pricelistText}\n\nΟδηγίες:`
     });
 
-    uploadedFiles.forEach(f => {
+    // Προσθήκη ανεβασμένων αρχείων τιμοκαταλόγων
+    uploadedPricelists.forEach(f => {
+      content.push({
+        type: f.type,
+        source: {
+          media_type: f.media_type,
+          data: f.data
+        }
+      });
+    });
+
+    // Προσθήκη ανεβασμένων αρχείων Datacards
+    uploadedDatacards.forEach(f => {
       content.push({
         type: f.type,
         source: {
@@ -496,7 +540,6 @@
         throw new Error(data.error || 'Αποτυχία επικοινωνίας με το API.');
       }
 
-      // Παίρνουμε το αποτέλεσμα που είναι σε JSON string
       const rawText = data.content[0].text;
       const parsedData = JSON.parse(rawText);
 
@@ -549,7 +592,6 @@
     document.getElementById('results-container').innerHTML = html;
   }
 
-  /* Ιστορικό */
   function getHistory() {
     try { return JSON.parse(localStorage.getItem('extras_history') || '[]'); } catch { return []; }
   }
