@@ -7,90 +7,96 @@ app.use(express.json({ limit: '25mb' }));
 
 app.post('/api/analyze', async (req, res) => {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ error: 'Missing OPENAI_API_KEY' });
+    const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Missing GEMINI_API_KEY' });
     }
 
     const userContent = req.body.messages?.[0]?.content || [];
     const systemText = req.body.system || '';
 
-    const inputContent = [];
+    // Ολοκληρωμένο σύστημα οδηγιών για απόλυτη ακρίβεια
+    const systemPrompt = `Είσαι το αυτοματοποιημένο σύστημα της Google για την τελωνειακή αποτίμηση και αντιστοίχιση extras οχημάτων με τη datacard. 
+Σκοπός σου είναι να αντιστοιχίσεις τον τιμοκατάλογο του οχήματος με τους κωδικούς της datacard με απόλυτη ακρίβεια, χωρίς εικασίες.
 
-    if (systemText) {
-      inputContent.push({
-        type: 'input_text',
-        text: systemText
-      });
-    }
+ΚΑΝΟΝΕΣ ΛΕΙΤΟΥΡΓΙΑΣ:
+1. ΜΗΝ ΜΑΝΤΕΥΕΙΣ τιμές. Αν ένας κωδικός δεν υπάρχει στον τιμοκατάλογο, η αξία του είναι 0 και καταχωρείται στη λίστα not_found.
+2. ΠΑΚΕΤΑ: Αν ένα extra περιέχεται σε πακέτο, η μεμονωμένη αξία του αφαιρείται από το σύνολο για να μην μετράει διπλά.
+3. ΜΗΝ αλλάζεις ποσά. Κάνε σωστή πρόσθεση των επιμέρους αξιών.
+4. Η απάντησή σου πρέπει να είναι ΜΟΝΟ έγκυρο JSON, χωρίς κείμενο ή σχόλια εκτός αυτού.
+
+${systemText}`;
+
+    const contents = [
+      {
+        role: 'user',
+        parts: [{ text: systemPrompt }]
+      }
+    ];
+
+    const geminiParts = [];
 
     for (const part of userContent) {
       if (part.type === 'text') {
-        inputContent.push({
-          type: 'input_text',
-          text: part.text
-        });
+        geminiParts.push({ text: part.text });
       }
 
       if (part.type === 'document') {
-        inputContent.push({
-          type: 'input_file',
-          filename: 'document.pdf',
-          file_data: `data:${part.source.media_type};base64,${part.source.data}`
+        geminiParts.push({
+          inlineData: {
+            mimeType: part.source.media_type,
+            data: part.source.data
+          }
         });
       }
 
       if (part.type === 'image') {
-        inputContent.push({
-          type: 'input_image',
-          image_url: `data:${part.source.media_type};base64,${part.source.data}`
+        geminiParts.push({
+          inlineData: {
+            mimeType: part.source.media_type,
+            data: part.source.data
+          }
         });
       }
     }
 
-    const response = await fetch('https://api.openai.com/v1/responses', {
+    contents.push({ role: 'user', parts: geminiParts });
+
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=' + apiKey, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini',
-        input: [
-          {
-            role: 'user',
-            content: inputContent
-          }
-        ]
+        contents: contents,
+        generationConfig: {
+          temperature: 0.0,
+          responseMimeType: 'application/json'
+        }
       })
     });
 
     const raw = await response.text();
 
     if (!response.ok) {
-      console.error('OPENAI RAW ERROR:', raw);
+      console.error('GEMINI RAW ERROR:', raw);
       return res.status(response.status).send(raw);
     }
 
     const data = JSON.parse(raw);
-
-    const text =
-      data.output_text ||
-      data.output?.flatMap(o => o.content || [])
-        .map(c => c.text || '')
-        .join('') ||
-      '';
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     return res.status(200).json({
       content: [
         {
           type: 'text',
-          text
+          text: text
         }
       ]
     });
 
   } catch (err) {
-    console.error('OPENAI ERROR:', err);
+    console.error('GEMINI ERROR:', err);
     return res.status(500).json({ error: err.message });
   }
 });
