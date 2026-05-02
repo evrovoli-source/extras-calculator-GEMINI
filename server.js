@@ -7,23 +7,25 @@ app.use(express.json({ limit: '25mb' }));
 
 app.post('/api/analyze', async (req, res) => {
   try {
+    // Διαβάζει το API Key απευθείας από το περιβάλλον (π.χ. Render), 
+    // διαφορετικά κοιτάζει το header από το frontend.
     const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];
+    
     if (!apiKey) {
-      return res.status(500).json({ error: 'Missing GEMINI_API_KEY' });
+      return res.status(500).json({ 
+        error: 'Δεν βρέθηκε GEMINI_API_KEY. Παρακαλώ ρυθμίστε το στο περιβάλλον σας ή εισάγετέ το μέσω της εφαρμογής.' 
+      });
     }
 
     const userContent = req.body.messages?.[0]?.content || [];
     const systemText = req.body.system || '';
 
-    // Ολοκληρωμένο σύστημα οδηγιών για απόλυτη ακρίβεια
-    const systemPrompt = `Είσαι το αυτοματοποιημένο σύστημα της Google για την τελωνειακή αποτίμηση και αντιστοίχιση extras οχημάτων με τη datacard. 
-Σκοπός σου είναι να αντιστοιχίσεις τον τιμοκατάλογο του οχήματος με τους κωδικούς της datacard με απόλυτη ακρίβεια, χωρίς εικασίες.
-
-ΚΑΝΟΝΕΣ ΛΕΙΤΟΥΡΓΙΑΣ:
-1. ΜΗΝ ΜΑΝΤΕΥΕΙΣ τιμές. Αν ένας κωδικός δεν υπάρχει στον τιμοκατάλογο, η αξία του είναι 0 και καταχωρείται στη λίστα not_found.
-2. ΠΑΚΕΤΑ: Αν ένα extra περιέχεται σε πακέτο, η μεμονωμένη αξία του αφαιρείται από το σύνολο για να μην μετράει διπλά.
-3. ΜΗΝ αλλάζεις ποσά. Κάνε σωστή πρόσθεση των επιμέρους αξιών.
-4. Η απάντησή σου πρέπει να είναι ΜΟΝΟ έγκυρο JSON, χωρίς κείμενο ή σχόλια εκτός αυτού.
+    const systemPrompt = `Είσαι το ψηφιακό σύστημα της Google για την τελωνειακή αποτίμηση και αντιστοίχιση extras οχημάτων.
+ΚΑΝΟΝΕΣ:
+1. Ακρίβεια: Αντιστοίχισε τον τιμοκατάλογο με την datacard. Αν ο κωδικός δεν υπάρχει στον τιμοκατάλογο, η αξία του είναι 0 (καταχωρείται στη λίστα not_found).
+2. Υπολογισμός Πακέτων: Αν ένα extra περιέχεται σε πακέτο, η μεμονωμένη αξία του αφαιρείται από το σύνολο.
+3. Υπολογισμός: Κάνε σωστή πρόσθεση. Απαγορεύονται οι εικασίες.
+4. Μορφή Απάντησης: Απαντάς ΜΟΝΟ με έγκυρο JSON.
 
 ${systemText}`;
 
@@ -41,16 +43,7 @@ ${systemText}`;
         geminiParts.push({ text: part.text });
       }
 
-      if (part.type === 'document') {
-        geminiParts.push({
-          inlineData: {
-            mimeType: part.source.media_type,
-            data: part.source.data
-          }
-        });
-      }
-
-      if (part.type === 'image') {
+      if (part.type === 'document' || part.type === 'image') {
         geminiParts.push({
           inlineData: {
             mimeType: part.source.media_type,
@@ -62,7 +55,7 @@ ${systemText}`;
 
     contents.push({ role: 'user', parts: geminiParts });
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=' + apiKey, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
