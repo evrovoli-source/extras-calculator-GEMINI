@@ -351,12 +351,7 @@
     
     <div class="form-group">
       <label for="vehicle-info">Όχημα (Μοντέλο - Πλαίσιο)</label>
-      <input type="text" id="vehicle-info" value="Mercedes-Benz (VIN: WDD212...)">
-    </div>
-
-    <div class="form-group">
-      <label for="pricelist-text">Τιμοκατάλογος (Κείμενο)</label>
-      <textarea id="pricelist-text" placeholder="Κωδικός, Περιγραφή, Αξία..."></textarea>
+      <input type="text" id="vehicle-info" value="Όχημα - Πλαίσιο">
     </div>
 
     <div class="form-group">
@@ -412,18 +407,18 @@
     renderHistory();
   });
 
-  function handleFileSelect(e, type) {
-    const files = e.target.files;
+  function handleFileSelect(event, type) {
+    const files = event.target.files;
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const reader = new FileReader();
       
-      reader.onload = (event) => {
+      reader.onload = (e) => {
         const fileData = {
           name: file.name,
           type: file.type.startsWith('image') ? 'image' : 'document',
           media_type: file.type,
-          data: event.target.result.split(',')[1]
+          data: e.target.result.split(',')[1]
         };
 
         if (type === 'pricelist') {
@@ -472,14 +467,13 @@
     loading.style.display = 'flex';
 
     const vehicle = document.getElementById('vehicle-info').value;
-    const pricelistText = document.getElementById('pricelist-text').value;
     const customPrompt = document.getElementById('custom-prompt').value;
 
     let content = [];
     
     content.push({
       type: 'text',
-      text: `Όχημα: ${vehicle}\n\nΤιμοκατάλογος:\n${pricelistText}\n\nΟδηγίες:`
+      text: `Όχημα: ${vehicle}\n\nΟδηγίες:`
     });
 
     uploadedPricelists.forEach(f => {
@@ -530,12 +524,11 @@
         total: parsedData.total || 0,
         data: parsedData
       });
-   } catch (err) {
+    } catch (err) {
       document.getElementById('results-container').innerHTML = '';
       document.getElementById('results-total').textContent = '0,00 €';
       document.getElementById('error-container').style.display = 'block';
-      // Διορθώθηκε ώστε να διαβάζει σωστά το μήνυμα του σφάλματος
-      document.getElementById('error-container').innerHTML = `<div class="error">Σφάλμα: ${err.message || err}</div>`;
+      document.getElementById('error-container').innerHTML = `<div class="error">Σφάλμα: ${err.message}</div>`;
     } finally {
       loading.style.display = 'none';
     }
