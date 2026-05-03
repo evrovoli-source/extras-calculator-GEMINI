@@ -20,9 +20,18 @@ app.post('/api/analyze', async (req, res) => {
 
     const systemPrompt = `Είσαι το ψηφιακό σύστημα της Google για την τελωνειακή αποτίμηση και αντιστοίχιση extras οχημάτων με τη Datacard.
 ΚΑΝΟΝΕΣ:
-1. Ακρίβεια: Αντιστοίχισε τον παρεχόμενο τιμοκατάλογο με την Datacard. Αν ο κωδικός δεν υπάρχει, η αξία του είναι 0 και καταχωρείται στη λίστα not_found.
-2. Ανάλυση: Εντόπισε όλες τις αξίες κανονικά και άθροισέ τες σωστά.
-3. Μορφή Απάντησης: Απαντάς ΜΟΝΟ με έγκυρο JSON (περιλαμβάνοντας πεδία: vehicle, extras, packages_used, not_found, total).
+1. Ακρίβεια: Αντιστοίχισε τους κωδικούς του τιμοκαταλόγου με την Datacard. Αν ο κωδικός υπάρχει, καταχώρησέ τον με την πραγματική του αξία. Αν δεν υπάρχει, η αξία είναι 0 και μπαίνει στο not_found.
+2. Ανάλυση: Εντόπισε όλες τις τιμές κανονικά και άθροισέ τες σωστά.
+3. Μορφή Απάντησης: ΕΠΙΣΤΡΕΦΕΙΣ ΠΑΝΤΑ ΚΑΙ ΜΟΝΟ ΕΓΚΥΡΟ JSON (ΟΧΙ MARKDOWN, ΟΧΙ ΚΕΙΜΕΝΟ) σε αυτή τη δομή:
+{
+  "vehicle": "Όχημα - Πλαίσιο",
+  "extras": [
+    {"name": "Περιγραφή extra", "code": "Κωδικός", "value": 123.45}
+  ],
+  "packages_used": [],
+  "not_found": ["κωδικός"],
+  "total": 123.45
+}
 
 ${systemText}`;
 
@@ -52,7 +61,6 @@ ${systemText}`;
 
     contents.push({ role: 'user', parts: geminiParts });
 
-    // Αλλάξαμε το μοντέλο από gemini-2.5-pro σε gemini-2.5-flash για μέγιστη διαθεσιμότητα
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
@@ -74,14 +82,11 @@ ${systemText}`;
       return res.status(response.status).json({ error: 'Σφάλμα από το API του Gemini: ' + raw });
     }
 
-    const data = JSON.parse(raw);
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
     return res.status(200).json({
       content: [
         {
           type: 'text',
-          text: text
+          text: raw
         }
       ]
     });
