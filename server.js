@@ -7,13 +7,11 @@ app.use(express.json({ limit: '25mb' }));
 
 app.post('/api/analyze', async (req, res) => {
   try {
-    // Διαβάζει το API Key απευθείας από το περιβάλλον (π.χ. Render), 
-    // διαφορετικά κοιτάζει το header από το frontend.
-    const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];
+    const apiKey = process.env.GEMINI_API_KEY;
     
     if (!apiKey) {
       return res.status(500).json({ 
-        error: 'Δεν βρέθηκε GEMINI_API_KEY. Παρακαλώ ρυθμίστε το στο περιβάλλον σας ή εισάγετέ το μέσω της εφαρμογής.' 
+        error: 'Δεν βρέθηκε GEMINI_API_KEY στις ρυθμίσεις του server στο Render.' 
       });
     }
 
@@ -73,7 +71,7 @@ ${systemText}`;
 
     if (!response.ok) {
       console.error('GEMINI RAW ERROR:', raw);
-      return res.status(response.status).send(raw);
+      return res.status(response.status).json({ error: 'Σφάλμα από το API του Gemini: ' + raw });
     }
 
     const data = JSON.parse(raw);
@@ -90,7 +88,8 @@ ${systemText}`;
 
   } catch (err) {
     console.error('GEMINI ERROR:', err);
-    return res.status(500).json({ error: err.message });
+    // Επιστρέφουμε σωστά το μήνυμα του σφάλματος ως string
+    return res.status(500).json({ error: err.message || 'Άγνωστο σφάλμα στο backend.' });
   }
 });
 
