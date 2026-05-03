@@ -530,11 +530,12 @@
         total: parsedData.total || 0,
         data: parsedData
       });
-    } catch (err) {
+   } catch (err) {
       document.getElementById('results-container').innerHTML = '';
       document.getElementById('results-total').textContent = '0,00 €';
       document.getElementById('error-container').style.display = 'block';
-      document.getElementById('error-container').innerHTML = `<div class="error">Σφάλμα: ${err.message}</div>`;
+      // Διορθώθηκε ώστε να διαβάζει σωστά το μήνυμα του σφάλματος
+      document.getElementById('error-container').innerHTML = `<div class="error">Σφάλμα: ${err.message || err}</div>`;
     } finally {
       loading.style.display = 'none';
     }
