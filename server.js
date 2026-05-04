@@ -16,53 +16,32 @@ app.post('/api/analyze', async (req, res) => {
     }
 
     const userContent = req.body.messages?.[0]?.content || [];
-    const systemText = req.body.system || '';
+    let promptText = '';
 
-    const systemPrompt = `Είσαι το αυτοματοποιημένο σύστημα της Google για τελωνειακή αποτίμηση.
-ΚΑΝΟΝΕΣ:
-1. Εντόπισε τον τιμοκατάλογο και την Datacard.
-2. Αντιστοίχισε τους κωδικούς με ακρίβεια.
-3. Υπολόγισε το σύνολο.
-4. Απάντησε ΜΟΝΟ με έγκυρο JSON.
-
-${systemText}`;
-
-    const contents = [
-      {
-        role: 'user',
-        parts: [{ text: systemPrompt }]
-      }
-    ];
-
-    const geminiParts = [];
-
+    // Εξαγωγή του κειμένου από το περιεχόμενο
     for (const part of userContent) {
       if (part.type === 'text') {
-        geminiParts.push({ text: part.text });
-      }
-
-      if (part.type === 'document' || part.type === 'image') {
-        geminiParts.push({
-          inlineData: {
-            mimeType: part.source.media_type,
-            data: part.source.data
-          }
-        });
+        promptText += part.text + '\n';
       }
     }
 
-    contents.push({ role: 'user', parts: geminiParts });
-
-    // Ενημερωμένο μοντέλο gemini-2.5-flash
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        contents: contents,
-        generationConfig: {
-          temperature: 0.0
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: promptText }
+            ]
+          }
+        ],
+        config: {
+          temperature: 0.0,
+          responseMimeType: 'application/json'
         }
       })
     });
@@ -74,11 +53,18 @@ ${systemText}`;
       return res.status(response.status).json({ error: 'Σφάλμα από το API του Gemini: ' + raw });
     }
 
+    const data = JSON.parse(raw);
+    let text = '';
+    
+    if (data.candidates && data.candidates.length > 0) {
+      text = data.candidates[0].content.parts[0].text;
+    }
+
     return res.status(200).json({
       content: [
         {
           type: 'text',
-          text: raw
+          text: text
         }
       ]
     });
