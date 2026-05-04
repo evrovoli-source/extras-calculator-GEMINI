@@ -40,8 +40,7 @@ app.post('/api/analyze', async (req, res) => {
         ],
         // Διορθώθηκε η δομή για να αποφευχθεί το σφάλμα 400
         generationConfig: {
-          temperature: 0.0,
-          responseMimeType: 'application/json'
+        responseMimeType: 'application/json'
         }
       })
     });
