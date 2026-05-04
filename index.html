@@ -550,14 +550,14 @@
       <div class="card">
         <div class="card-title">Αναγνωρισμένα Extras (Datacard)</div>
         <div class="card-content">
-          ${(data.extras || []).map(e => `<div>• <b>${e.code || e.name}</b>: ${e.description || ''} <span style="float:right">${Number(e.price || 0).toLocaleString('el-GR', {style:'currency',currency:'EUR'})}</span></div>`).join('')}
+          ${(data.extras || []).map(e => `<div>• <b>${e.code || e.name || ''}</b>: ${e.description || ''} <span style="float:right">${Number(e.price || e.value || 0).toLocaleString('el-GR', {style:'currency',currency:'EUR'})}</span></div>`).join('')}
         </div>
       </div>
       
       <div class="card">
         <div class="card-title">Πακέτα</div>
         <div class="card-content">
-          ${(data.packages || []).map(p => `<div>• <b>${p.name || p.code}</b>: <span style="float:right">${Number(p.price || 0).toLocaleString('el-GR', {style:'currency',currency:'EUR'})}</span></div>`).join('')}
+          ${(data.packages || []).map(p => `<div>• <b>${p.name || p.code || ''}</b>: <span style="float:right">${Number(p.price || p.value || 0).toLocaleString('el-GR', {style:'currency',currency:'EUR'})}</span></div>`).join('')}
         </div>
       </div>
 
@@ -574,7 +574,7 @@
 
   function exportPDF() {
     if (!currentResult) {
-      alert('Κάνε πρώτα ανάλυση οχήματος');
+      alert('Κάντε πρώτα ανάλυση οχήματος');
       return;
     }
     const { jsPDF } = window.jspdf;
