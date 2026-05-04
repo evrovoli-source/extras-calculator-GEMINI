@@ -16,11 +16,39 @@ app.post('/api/analyze', async (req, res) => {
     }
 
     const userContent = req.body.messages?.[0]?.content || [];
-    let promptText = '';
+    const systemText = req.body.system || '';
+
+    const systemPrompt = `Είσαι το αυτοματοποιημένο σύστημα της Google για τελωνειακή αποτίμηση.
+ΚΑΝΟΝΕΣ:
+1. Εντόπισε τον τιμοκατάλογο και την Datacard από τα αρχεία.
+2. Αντιστοίχισε τους κωδικούς με ακρίβεια.
+3. Υπολόγισε το σύνολο.
+4. Απάντησε ΜΟΝΟ με έγκυρο JSON:
+{
+  "vehicle": "Όχημα - Πλαίσιο",
+  "extras": [],
+  "packages": [],
+  "not_found": [],
+  "total": 0.00
+}
+
+${systemText}`;
+
+    const geminiParts = [];
+    geminiParts.push({ text: systemPrompt });
 
     for (const part of userContent) {
       if (part.type === 'text') {
-        promptText += part.text + '\n';
+        geminiParts.push({ text: part.text });
+      }
+
+      if (part.type === 'document' || part.type === 'image') {
+        geminiParts.push({
+          inlineData: {
+            mimeType: part.source.media_type,
+            data: part.source.data
+          }
+        });
       }
     }
 
@@ -33,14 +61,12 @@ app.post('/api/analyze', async (req, res) => {
         contents: [
           {
             role: 'user',
-            parts: [
-              { text: promptText }
-            ]
+            parts: geminiParts
           }
         ],
-        // Διορθώθηκε η δομή για να αποφευχθεί το σφάλμα 400
         generationConfig: {
-        responseMimeType: 'application/json'
+          temperature: 0.0,
+          responseMimeType: 'application/json'
         }
       })
     });
@@ -52,18 +78,11 @@ app.post('/api/analyze', async (req, res) => {
       return res.status(response.status).json({ error: 'Σφάλμα από το API του Gemini: ' + raw });
     }
 
-    const data = JSON.parse(raw);
-    let text = '';
-    
-    if (data.candidates && data.candidates.length > 0) {
-      text = data.candidates[0].content.parts[0].text;
-    }
-
     return res.status(200).json({
       content: [
         {
           type: 'text',
-          text: text
+          text: raw
         }
       ]
     });
