@@ -18,7 +18,6 @@ app.post('/api/analyze', async (req, res) => {
     const userContent = req.body.messages?.[0]?.content || [];
     let promptText = '';
 
-    // Εξαγωγή του κειμένου από το περιεχόμενο
     for (const part of userContent) {
       if (part.type === 'text') {
         promptText += part.text + '\n';
@@ -39,7 +38,8 @@ app.post('/api/analyze', async (req, res) => {
             ]
           }
         ],
-        config: {
+        // Διορθώθηκε η δομή για να αποφευχθεί το σφάλμα 400
+        generationConfig: {
           temperature: 0.0,
           responseMimeType: 'application/json'
         }
