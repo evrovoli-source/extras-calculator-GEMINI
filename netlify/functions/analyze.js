@@ -1,7 +1,7 @@
 export async function handler(event) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, x-gemini-key',
+    'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
@@ -10,11 +10,10 @@ export async function handler(event) {
   }
 
   try {
-    // 1. Διάβασμα δεδομένων από το event.body
     const body = JSON.parse(event.body);
     const messages = body.messages || [];
-    
-    // 2. Εύρεση API Key
+    const systemText = body.system || '';
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return { 
@@ -24,15 +23,15 @@ export async function handler(event) {
       };
     }
 
-    // 3. Εξαγωγή κειμένου και αρχείων από το `messages[0].content`
     const userContent = messages[0]?.content || [];
     const geminiParts = [];
 
-    // System prompt για να είναι αυστηρός ο Gemini
-    geminiParts.push({
-      text: "Είσαι το ψηφιακό σύστημα της Google για τελωνειακή αποτίμηση extras οχημάτων. Απαντάς ΜΟΝΟ με έγκυρο JSON. Αντιστοίχισε τα αρχεία με ακρίβεια, χωρίς εικασίες."
-    });
+    // Προσθήκη των οδηγιών συστήματος ως κείμενο
+    if (systemText) {
+      geminiParts.push({ text: `System Instructions: ${systemText}` });
+    }
 
+    // Προσθήκη κειμένου και αρχείων (documents/images) ως inlineData
     for (const part of userContent) {
       if (part.type === 'text') {
         geminiParts.push({ text: part.text });
@@ -46,7 +45,6 @@ export async function handler(event) {
       }
     }
 
-    // 4. Κλήση στο API του Gemini
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
@@ -73,6 +71,7 @@ export async function handler(event) {
       return { statusCode: response.status, headers, body: raw };
     }
 
+    // Επιστρέφουμε κατευθείαν το κείμενο της απάντησης
     const data = JSON.parse(raw);
     const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
