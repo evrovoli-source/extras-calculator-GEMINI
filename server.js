@@ -20,19 +20,12 @@ app.post('/api/analyze', async (req, res) => {
 
     const systemPrompt = `Είσαι το αυτοματοποιημένο σύστημα της Google για τελωνειακή αποτίμηση.
 ΚΑΝΟΝΕΣ:
-1. Εντόπισε τον τιμοκατάλογο και την Datacard από τα αρχεία που δόθηκαν.
-2. Αντιστοίχισε τους κωδικούς.
+1. Εντόπισε τον τιμοκατάλογο και την Datacard.
+2. Αντιστοίχισε τους κωδικούς με ακρίβεια.
 3. Υπολόγισε το σύνολο.
-4. Απάντησε ΜΟΝΟ με έγκυρο JSON:
-{
-  "vehicle": "Όχημα",
-  "extras": [
-    {"name": "περιγραφή", "code": "κωδικός", "price": 123.45}
-  ],
-  "packages": [],
-  "not_found": ["κωδικοί"],
-  "total": 123.45
-}`;
+4. Απάντησε ΜΟΝΟ με έγκυρο JSON.
+
+${systemText}`;
 
     const contents = [
       {
@@ -60,7 +53,7 @@ app.post('/api/analyze', async (req, res) => {
 
     contents.push({ role: 'user', parts: geminiParts });
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -68,8 +61,7 @@ app.post('/api/analyze', async (req, res) => {
       body: JSON.stringify({
         contents: contents,
         generationConfig: {
-          temperature: 0.0,
-          responseMimeType: 'application/json'
+          temperature: 0.0
         }
       })
     });
