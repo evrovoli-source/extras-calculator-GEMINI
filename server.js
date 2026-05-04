@@ -78,6 +78,7 @@ ${systemText}`;
       return res.status(response.status).json({ error: 'Σφάλμα από το API του Gemini: ' + raw });
     }
 
+    // Επιστρέφουμε απευθείας το raw JSON κείμενο, όχι σε επιπλέον arrays
     return res.status(200).json({
       content: [
         {
